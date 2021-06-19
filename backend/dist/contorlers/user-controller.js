@@ -43,6 +43,7 @@ var userSchema_1 = __importDefault(require("../models/userSchema"));
 var Auth = require("two-step-auth").Auth;
 var jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 var moviesSchema_1 = __importDefault(require("../models/moviesSchema"));
+var stripe = require('stripe')('sk_test_51J13DwSCmwvfJONqexefVVvgQYLNVypxljSree6qe1lANZRqBU3RAk116Xscnret8qYbo7tjgZLno8jkjBtEnwrx00ItYEDpCr');
 var userRegistration = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var user, err_1;
     return __generator(this, function (_a) {
@@ -77,28 +78,31 @@ var userLogin = function (req, res) { return __awaiter(void 0, void 0, void 0, f
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 4, , 5]);
+                _a.trys.push([0, 6, , 7]);
                 return [4 /*yield*/, userSchema_1.default.findOne({ email: req.body.email })];
             case 1:
                 userdata = _a.sent();
                 console.log("userdata", req.body);
-                if (!userdata) {
-                    return [2 /*return*/, res.status(401).json("invalid")];
-                }
-                return [4 /*yield*/, Auth(userdata.email, "ott platform")];
-            case 2:
+                if (!!userdata) return [3 /*break*/, 2];
+                console.log("userdata1", req.body);
+                res.status(401).send("unauthorized");
+                return [3 /*break*/, 5];
+            case 2: return [4 /*yield*/, Auth(userdata.email, "MovieFlix by udhaya")];
+            case 3:
                 otp = _a.sent();
                 return [4 /*yield*/, userSchema_1.default.findOneAndUpdate({ email: userdata.email }, { $set: { otp: otp.OTP } })];
-            case 3:
+            case 4:
                 _a.sent();
                 console.log(otp);
                 res.status(200).send(req.body.email);
-                return [3 /*break*/, 5];
-            case 4:
+                _a.label = 5;
+            case 5: return [3 /*break*/, 7];
+            case 6:
                 error_1 = _a.sent();
+                res.status(403).send(error_1);
                 console.log(error_1);
-                return [3 /*break*/, 5];
-            case 5: return [2 /*return*/];
+                return [3 /*break*/, 7];
+            case 7: return [2 /*return*/];
         }
     });
 }); };
@@ -193,10 +197,33 @@ var addingHistory = function (req, res) { return __awaiter(void 0, void 0, void 
         }
     });
 }); };
+var deleteHistory = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var user, updatedData, err_4;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0:
+                _a.trys.push([0, 3, , 4]);
+                console.log("deleted history ", req.body.id);
+                return [4 /*yield*/, userSchema_1.default.findOne({ email: req.userMail })];
+            case 1:
+                user = _a.sent();
+                return [4 /*yield*/, userSchema_1.default.findOneAndUpdate({ email: user.email }, { $pull: { history: { _id: req.body.id } } })];
+            case 2:
+                updatedData = _a.sent();
+                res.send(updatedData);
+                return [3 /*break*/, 4];
+            case 3:
+                err_4 = _a.sent();
+                res.sendStatus(403);
+                return [3 /*break*/, 4];
+            case 4: return [2 /*return*/];
+        }
+    });
+}); };
 //getting history
 //not working
 var gettingHistory = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var user, list, movie, err_4;
+    var user, list, movie, err_5;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -213,7 +240,7 @@ var gettingHistory = function (req, res) { return __awaiter(void 0, void 0, void
                 console.log("id of movie", list[0].WatchedMovieTitle);
                 return [3 /*break*/, 4];
             case 3:
-                err_4 = _a.sent();
+                err_5 = _a.sent();
                 return [3 /*break*/, 4];
             case 4: return [2 /*return*/];
         }
@@ -221,7 +248,7 @@ var gettingHistory = function (req, res) { return __awaiter(void 0, void 0, void
 }); };
 //playing a movie
 var watchMovie = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var movieData, err_5;
+    var movieData, err_6;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -235,8 +262,8 @@ var watchMovie = function (req, res) { return __awaiter(void 0, void 0, void 0, 
                 res.json(movieData.movieUrl);
                 return [3 /*break*/, 4];
             case 3:
-                err_5 = _a.sent();
-                res.status(403).send(err_5);
+                err_6 = _a.sent();
+                res.status(403).send(err_6);
                 return [3 /*break*/, 4];
             case 4: return [2 /*return*/];
         }
@@ -268,11 +295,11 @@ var WatchLater = function (req, res) { return __awaiter(void 0, void 0, void 0, 
 }); };
 //adding review
 var addingReview = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var review, movie, err_6;
+    var review, movie, response, err_7;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 2, , 3]);
+                _a.trys.push([0, 3, , 4]);
                 review = {
                     userFirstName: req.firstName,
                     comments: req.body.comments,
@@ -282,19 +309,22 @@ var addingReview = function (req, res) { return __awaiter(void 0, void 0, void 0
                 return [4 /*yield*/, moviesSchema_1.default.findOneAndUpdate({ _id: req.params.id }, { $push: { reviews: review } })];
             case 1:
                 movie = _a.sent();
-                res.send(movie);
-                return [3 /*break*/, 3];
+                return [4 /*yield*/, moviesSchema_1.default.findOne({ _id: req.params.id })];
             case 2:
-                err_6 = _a.sent();
+                response = _a.sent();
+                res.send(response.reviews);
+                return [3 /*break*/, 4];
+            case 3:
+                err_7 = _a.sent();
                 res.sendStatus(403);
-                return [3 /*break*/, 3];
-            case 3: return [2 /*return*/];
+                return [3 /*break*/, 4];
+            case 4: return [2 /*return*/];
         }
     });
 }); };
 //getting pro
 var getProfileData = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var data, err_7;
+    var data, err_8;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -305,10 +335,50 @@ var getProfileData = function (req, res) { return __awaiter(void 0, void 0, void
                 res.send(data);
                 return [3 /*break*/, 3];
             case 2:
-                err_7 = _a.sent();
+                err_8 = _a.sent();
                 res.sendStatus(403);
                 return [3 /*break*/, 3];
             case 3: return [2 /*return*/];
+        }
+    });
+}); };
+var makePayment = function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var token;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0:
+                token = req.body.token;
+                return [4 /*yield*/, stripe.customers.create({
+                        email: token.email,
+                        source: token.id
+                    }).then(function (customer) { return stripe.charges.create({
+                        amount: 499 * 100,
+                        currency: "inr",
+                        customer: customer.id,
+                    }); }).then(function (resss) { return __awaiter(void 0, void 0, void 0, function () {
+                        var err_9;
+                        return __generator(this, function (_a) {
+                            switch (_a.label) {
+                                case 0:
+                                    _a.trys.push([0, 2, , 3]);
+                                    return [4 /*yield*/, userSchema_1.default.findOneAndUpdate({ email: token.email }, { isPayment: true })];
+                                case 1:
+                                    _a.sent();
+                                    res.status(200).json("true");
+                                    return [3 /*break*/, 3];
+                                case 2:
+                                    err_9 = _a.sent();
+                                    console.log("ERROR" + err_9);
+                                    res.sendStatus(403);
+                                    return [3 /*break*/, 3];
+                                case 3: return [2 /*return*/];
+                            }
+                        });
+                    }); })
+                        .catch(function (error) { return console.error("ERROR" + error); })];
+            case 1:
+                _a.sent();
+                return [2 /*return*/];
         }
     });
 }); };
@@ -317,9 +387,10 @@ exports.default = {
     userLogin: userLogin,
     otpVerification: otpVerification,
     addingHistory: addingHistory,
+    deleteHistory: deleteHistory,
     watchMovie: watchMovie,
     UserAccess: UserAccess,
-    gettingHistory: gettingHistory,
     addingReview: addingReview,
-    getProfileData: getProfileData
+    getProfileData: getProfileData,
+    makePayment: makePayment
 };

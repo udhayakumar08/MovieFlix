@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 const { Auth } = require("two-step-auth")
 import jwt from 'jsonwebtoken'
 import movieSchema from '../models/moviesSchema'
+const stripe = require('stripe')('sk_test_51J13DwSCmwvfJONqexefVVvgQYLNVypxljSree6qe1lANZRqBU3RAk116Xscnret8qYbo7tjgZLno8jkjBtEnwrx00ItYEDpCr');
 
 const userRegistration = async (req: any, res: any) => {
     try {
@@ -32,17 +33,23 @@ const userLogin = async (req: any, res: any) => {
         var userdata = await userSchema.findOne({ email: req.body.email })
         console.log("userdata", req.body)
         if (!userdata) {
-            return res.status(401).json("invalid")
+            console.log("userdata1", req.body)
+
+            res.status(401).send("unauthorized")
+        }
+        else {
+            const otp = await Auth(userdata.email, "MovieFlix by udhaya")
+            await userSchema.findOneAndUpdate({ email: userdata.email }, { $set: { otp: otp.OTP } })
+            console.log(otp)
+            res.status(200).send(req.body.email)
+            //console.log(userToken)
+
         }
 
-        const otp = await Auth(userdata.email, "ott platform")
-        await userSchema.findOneAndUpdate({ email: userdata.email }, { $set: { otp: otp.OTP } })
-        console.log(otp)
 
-        res.status(200).send(req.body.email)
-        //console.log(userToken)
 
     } catch (error) {
+        res.status(403).send(error)
 
         console.log(error)
     }
@@ -74,7 +81,7 @@ const otpVerification = async (req: any, res: any) => {
 
 
 const UserAccess = async (req: any, res: any, next: any) => {
-console.log("authorization");
+    console.log("authorization");
 
     const token = req.header('user')
     console.log("token from new header", token);
@@ -109,6 +116,20 @@ const addingHistory = async (req: any, res: any) => {
         res.send(updatedData)
     } catch (err) {
         res.status(403).send(err)
+    }
+}
+
+const deleteHistory = async (req: any, res: any) => {
+    try {
+        console.log("deleted history ", req.body.id);
+
+        let user = await userSchema.findOne({ email: req.userMail })
+
+        let updatedData = await userSchema.findOneAndUpdate({ email: user.email }, { $pull: { history: { _id: req.body.id } } })
+        res.send(updatedData)
+
+    } catch (err) {
+        res.sendStatus(403)
     }
 }
 
@@ -168,7 +189,8 @@ const addingReview = async (req: any, res: any) => {
         console.log("request body", review);
 
         let movie = await movieSchema.findOneAndUpdate({ _id: req.params.id }, { $push: { reviews: review } })
-        res.send(movie)
+        let response = await movieSchema.findOne({ _id: req.params.id });
+        res.send(response.reviews)
     } catch (err) {
         res.sendStatus(403)
     }
@@ -186,15 +208,43 @@ const getProfileData = async (req: any, res: any) => {
 
 
 }
+
+const makePayment = async (req: any, res: any) => {
+    //console.log(req.body);
+    const { token } = req.body
+    await stripe.customers.create({
+        email: token.email,
+        source: token.id
+    }).then((customer: any) => stripe.charges.create({
+        amount: 499 * 100,
+        currency: "inr",
+        customer: customer.id,
+    })).then(async (resss: any) => {
+        // console.log("token", token.email);
+        try {
+            await userSchema.findOneAndUpdate({ email: token.email }, { isPayment: true })
+            res.status(200).json("true")
+
+        } catch (err) {
+            console.log("ERROR" + err);
+            res.sendStatus(403)
+        }
+
+
+    })
+        .catch((error: any) => console.error("ERROR" + error))
+
+}
 export default {
     userRegistration,
     userLogin,
     otpVerification,
     addingHistory,
+    deleteHistory,
     watchMovie,
     UserAccess,
-    gettingHistory,
     addingReview,
-    getProfileData
+    getProfileData,
+    makePayment
 
 }

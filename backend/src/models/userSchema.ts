@@ -25,15 +25,17 @@ const userSchema = new mongoose.Schema({
     plan: {
         type: String
     },
-
+    isPayment: {
+        type: Boolean
+    },
 
     history: [
         {
-        
+
             WatchedMovieTitle: {
                 type: String,
-                unique:true
-                
+                unique: true
+
             }
         }
     ],
@@ -41,8 +43,8 @@ const userSchema = new mongoose.Schema({
 
 
     watchLater: [{
-        Movieid:{
-            type:String
+        Movieid: {
+            type: String
         }
     }]
     ,

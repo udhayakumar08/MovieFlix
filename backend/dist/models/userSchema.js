@@ -24,6 +24,9 @@ var userSchema = new mongoose_1.default.Schema({
     plan: {
         type: String
     },
+    isPayment: {
+        type: Boolean
+    },
     history: [
         {
             WatchedMovieTitle: {
